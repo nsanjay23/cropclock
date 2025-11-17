@@ -255,3 +255,156 @@ body {
   cursor: pointer;
   font-weight: bold;
 }
+
+/* ... Existing styles ... */
+
+/* --- NEW FORM STYLES --- */
+
+.form-container {
+  background-color: var(--card-bg);
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  text-align: left;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form-section-title {
+  color: var(--dark-green);
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--light-green);
+  padding-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.location-status {
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  background-color: #e8f5e9;
+  color: var(--dark-green);
+  border-radius: 8px;
+  border: 1px solid var(--light-green);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns */
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Make single column on small screens */
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #fff;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px var(--light-green);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--primary-green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-btn:hover {
+  background-color: var(--dark-green);
+}
+
+.price-btn {
+  background-color: #c62828; /* Reddish for Price Prediction as per image */
+}
+.price-btn:hover { background-color: #b71c1c; }
+
+.advisor-btn {
+  background-color: #1565c0; /* Blueish for Fertilizer as per image */
+}
+.advisor-btn:hover { background-color: #0d47a1; }
+
+/* ... Existing styles ... */
+
+/* --- AUTOCOMPLETE DROPDOWN STYLES --- */
+
+.autocomplete-wrapper {
+  position: relative; /* Keeps the dropdown attached to the input */
+}
+
+.suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestions-list li {
+  padding: 12px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.suggestions-list li:last-child {
+  border-bottom: none;
+}
+
+.suggestions-list li:hover {
+  background-color: #e8f5e9; /* Light green hover */
+  color: var(--dark-green);
+}

@@ -1,46 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../App';
 
 function FertilizerAdvisorPage() {
-  const { language, location, setLocation } = useApp();
-  const [tempLocation, setTempLocation] = useState('');
-
+  const { language } = useApp();
   const t = translations[language];
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (tempLocation) {
-      setLocation(tempLocation);
-    }
-  };
+  const [locationStatus, setLocationStatus] = useState('Detecting location...');
+  
+  // Mock data for dropdowns
+  const soilTypes = ['Clay', 'Sandy', 'Loamy', 'Black', 'Red'];
+  const crops = ['Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane'];
 
-  if (!location) {
-    return (
-      <div className="feature-page">
-        <h2>{t.title}</h2>
-        <form className="location-form" onSubmit={handleSubmit}>
-          <label htmlFor="location">{t.locationLabel}</label>
-          <input
-            type="text"
-            id="location"
-            value={tempLocation}
-            onChange={(e) => setTempLocation(e.target.value)}
-            placeholder={t.locationPlaceholder}
-          />
-          <button type="submit">{t.submit}</button>
-        </form>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => setLocationStatus(`Location Detected: ${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`),
+        (error) => setLocationStatus("Location access denied.")
+      );
+    }
+  }, []);
 
   return (
     <div className="feature-page">
       <h2>{t.title}</h2>
-      <p>
-        {t.showingFor}: <strong>{location}</strong>
-      </p>
-      <div className="feature-content-placeholder">
-        <p>{t.contentPlaceholder}</p>
+      
+      <div className="form-container">
+        <div className="location-status">📍 {locationStatus}</div>
+        <div className="form-section-title">🌿 Fertilizer Recommendation</div>
+
+        <form>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Temperature (°C)</label>
+              <input type="number" placeholder="e.g., 26" />
+            </div>
+            <div className="form-group">
+              <label>Humidity (%)</label>
+              <input type="number" placeholder="e.g., 80" />
+            </div>
+            <div className="form-group">
+              <label>Soil Moisture</label>
+              <input type="number" placeholder="e.g., 60" />
+            </div>
+            <div className="form-group">
+              <label>Nitrogen (N)</label>
+              <input type="number" placeholder="e.g., 40" />
+            </div>
+            <div className="form-group">
+              <label>Potassium (K)</label>
+              <input type="number" placeholder="e.g., 20" />
+            </div>
+            <div className="form-group">
+              <label>Phosphorus (P)</label>
+              <input type="number" placeholder="e.g., 30" />
+            </div>
+            <div className="form-group">
+              <label>Select Soil Type</label>
+              <select>
+                <option value="">-- Select Soil --</option>
+                {soilTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Select Crop</label>
+              <select>
+                <option value="">-- Select Crop --</option>
+                {crops.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          
+          {/* Blueish button as per image */}
+          <button type="button" className="submit-btn advisor-btn">{t.submit}</button>
+        </form>
       </div>
     </div>
   );
@@ -49,19 +81,11 @@ function FertilizerAdvisorPage() {
 const translations = {
   en: {
     title: 'Fertilizer Advisor',
-    locationLabel: 'Please enter your location for soil data:',
-    locationPlaceholder: 'e.g., Thanjavur',
-    submit: 'Get Advice',
-    showingFor: 'Showing fertilizer advice for',
-    contentPlaceholder: 'Your fertilizer advice will appear here.',
+    submit: 'Recommend Fertilizer',
   },
   ta: {
     title: 'உர ஆலோசகர்',
-    locationLabel: 'மண் தரவுகளுக்கு உங்கள் இருப்பிடத்தை உள்ளிடவும்:',
-    locationPlaceholder: 'எ.கா., தஞ்சாவூர்',
-    submit: 'ஆலோசனையைப் பெறுங்கள்',
-    showingFor: 'உர ஆலோசனையைக் காட்டுகிறது',
-    contentPlaceholder: 'உங்கள் உர ஆலோசனை இங்கே தோன்றும்.',
+    submit: 'உரத்தை பரிந்துரைக்கவும்',
   },
 };
 

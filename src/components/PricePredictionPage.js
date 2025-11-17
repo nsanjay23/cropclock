@@ -2,45 +2,65 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 
 function PricePredictionPage() {
-  const { language, location, setLocation } = useApp();
-  const [tempLocation, setTempLocation] = useState('');
-
+  const { language } = useApp();
   const t = translations[language];
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (tempLocation) {
-      setLocation(tempLocation);
-    }
-  };
-
-  if (!location) {
-    return (
-      <div className="feature-page">
-        <h2>{t.title}</h2>
-        <form className="location-form" onSubmit={handleSubmit}>
-          <label htmlFor="location">{t.locationLabel}</label>
-          <input
-            type="text"
-            id="location"
-            value={tempLocation}
-            onChange={(e) => setTempLocation(e.target.value)}
-            placeholder={t.locationPlaceholder}
-          />
-          <button type="submit">{t.submit}</button>
-        </form>
-      </div>
-    );
-  }
+  // Mock Data for Dropdowns
+  const states = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh'];
+  const crops = ['Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane'];
+  const seasons = ['Kharif', 'Rabi', 'Zaid'];
 
   return (
     <div className="feature-page">
       <h2>{t.title}</h2>
-      <p>
-        {t.showingFor}: <strong>{location}</strong>
-      </p>
-      <div className="feature-content-placeholder">
-        <p>{t.contentPlaceholder}</p>
+      
+      <div className="form-container">
+        <div className="form-section-title">💰 Market Price Prediction</div>
+
+        <form>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Select State</label>
+              <select>
+                <option value="">-- Select State --</option>
+                {states.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Select Crop</label>
+              <select>
+                <option value="">-- Select Crop --</option>
+                {crops.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Select Season</label>
+              <select>
+                <option value="">-- Select Season --</option>
+                {seasons.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Month</label>
+              <input type="text" placeholder="e.g., January" />
+            </div>
+            <div className="form-group">
+              <label>Stock (kg)</label>
+              <input type="number" placeholder="e.g., 1000" />
+            </div>
+            <div className="form-group">
+              <label>Demand Index</label>
+              <input type="number" placeholder="e.g., 8.5" />
+            </div>
+            <div className="form-group">
+              <label>Storage Cost Index</label>
+              <input type="number" placeholder="e.g., 2.1" />
+            </div>
+          </div>
+          
+          {/* Reddish button as per image */}
+          <button type="button" className="submit-btn price-btn">{t.submit}</button>
+        </form>
       </div>
     </div>
   );
@@ -49,19 +69,11 @@ function PricePredictionPage() {
 const translations = {
   en: {
     title: 'Price Prediction',
-    locationLabel: 'Please enter your location for local market data:',
-    locationPlaceholder: 'e.g., Madurai',
-    submit: 'Get Predictions',
-    showingFor: 'Showing price predictions for',
-    contentPlaceholder: 'Your price predictions will appear here.',
+    submit: 'Predict Price',
   },
   ta: {
     title: 'விலை கணிப்பு',
-    locationLabel: 'உள்ளூர் சந்தைத் தரவுகளுக்கு உங்கள் இருப்பிடத்தை உள்ளிடவும்:',
-    locationPlaceholder: 'எ.கா., மதுரை',
-    submit: 'கணிப்புகளைப் பெறுங்கள்',
-    showingFor: 'விலை கணிப்புகளைக் காட்டுகிறது',
-    contentPlaceholder: 'உங்கள் விலை கணிப்புகள் இங்கே தோன்றும்.',
+    submit: 'விலையை கணிக்கவும்',
   },
 };
 
