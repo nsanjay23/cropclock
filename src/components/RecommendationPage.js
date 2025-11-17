@@ -16,13 +16,12 @@ function RecommendationPage() {
   });
 
   const [isLoading, setIsLoading] = useState(true);
-  const [suggestions, setSuggestions] = useState([]); 
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [manualLoading, setManualLoading] = useState(false);
   
-  // We use this state to track what the user is *actively* typing
-  const [searchTerm, setSearchTerm] = useState(''); 
+  // NEW: State for the prediction result
+  const [prediction, setPrediction] = useState(null);
 
-  // 1. Automatic GPS Location on Load
+  // 1. Automatic GPS Location (Existing Code)
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -42,32 +41,7 @@ function RecommendationPage() {
     }
   }, []);
 
-  // 2. OPTIMIZED AUTOCOMPLETE LOGIC
-  useEffect(() => {
-    // If search term is too short, don't search
-    if (searchTerm.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    // "Debounce" logic: Wait 500ms after user stops typing
-    const delayDebounceFn = setTimeout(async () => {
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchTerm}&addressdetails=1&limit=5`);
-        const results = await response.json();
-        setSuggestions(results);
-        setShowSuggestions(true);
-      } catch (error) {
-        console.error("Error fetching suggestions:", error);
-      }
-    }, 500); // Reduced from 1000ms to 500ms for snappier feel
-
-    // Cleanup function: If user types again, cancel the previous timer
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
-
-  // Helper: Fetch Weather using Lat/Long
+  // Helper: Fetch Weather (Existing Code)
   const fetchWeatherByCoords = async (lat, long, locationName = null) => {
     try {
       let finalLocationName = locationName;
@@ -77,10 +51,6 @@ function RecommendationPage() {
         const address = locationData.address;
         finalLocationName = address.village || address.town || address.city || address.county || "Unknown Location";
       }
-
-      // Update the input field with the found name
-      setFormData(prev => ({ ...prev, location: finalLocationName }));
-      setSearchTerm(finalLocationName); // Sync search term so dropdown doesn't pop up again unnecessarily
 
       const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${long}&current=temperature_2m,relative_humidity_2m,rain`);
       const weatherData = await weatherResponse.json();
@@ -98,18 +68,56 @@ function RecommendationPage() {
     }
   };
 
-  // Handle user typing
-  const handleLocationInput = (e) => {
-    const value = e.target.value;
-    setFormData({ ...formData, location: value });
-    setSearchTerm(value); // Triggers the useEffect above
+  // Manual "Get Weather" (Existing Code)
+  const handleManualWeatherFetch = async () => {
+    if (!formData.location) return;
+    setManualLoading(true);
+    try {
+      const searchResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${formData.location}`);
+      const searchData = await searchResponse.json();
+
+      if (searchData && searchData.length > 0) {
+        const lat = searchData[0].lat;
+        const lon = searchData[0].lon;
+        const displayName = searchData[0].display_name.split(',')[0];
+        await fetchWeatherByCoords(lat, lon, displayName);
+      } else {
+        alert("Location not found.");
+      }
+    } catch (error) {
+      alert("Error fetching weather data.");
+    }
+    setManualLoading(false);
   };
 
-  // Handle clicking a suggestion
-  const selectSuggestion = (place) => {
-    setShowSuggestions(false);
-    // Fetch weather immediately
-    fetchWeatherByCoords(place.lat, place.lon, place.display_name.split(',')[0]);
+  // NEW: Handle Prediction (Connect to Backend)
+  const handlePredict = async () => {
+    // Basic validation
+    if (!formData.nitrogen || !formData.phosphorus || !formData.potassium) {
+      alert("Please fill in N, P, and K values.");
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+      
+      if (result.prediction) {
+        setPrediction(result.prediction);
+      } else {
+        alert("Error predicting: " + result.error);
+      }
+    } catch (error) {
+      console.error("Error connecting to backend:", error);
+      alert("Could not connect to the prediction server.");
+    }
   };
 
   const handleChange = (e) => {
@@ -126,29 +134,34 @@ function RecommendationPage() {
         <form>
           <div className="form-grid">
             
-            {/* Location Input with Autocomplete */}
+            {/* Location Input + Button */}
             <div className="form-group" style={{gridColumn: '1 / -1'}}>
               <label>Location (Village / City)</label>
-              <div className="autocomplete-wrapper">
+              <div style={{display: 'flex', gap: '10px'}}>
                 <input 
                   type="text" 
                   name="location" 
                   value={formData.location} 
-                  onChange={handleLocationInput} 
-                  placeholder={isLoading ? "Detecting location..." : "Type to search (e.g. Madurai)..."} 
-                  autoComplete="off"
+                  onChange={handleChange} 
+                  placeholder={isLoading ? "Detecting location..." : "Enter city name"} 
+                  style={{flexGrow: 1}}
                 />
-                
-                {/* Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <ul className="suggestions-list">
-                    {suggestions.map((place) => (
-                      <li key={place.place_id} onClick={() => selectSuggestion(place)}>
-                        {place.display_name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <button 
+                  type="button" 
+                  onClick={handleManualWeatherFetch}
+                  style={{
+                    backgroundColor: '#388E3C',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0 20px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {manualLoading ? "Loading..." : "Get Weather"}
+                </button>
               </div>
             </div>
 
@@ -169,7 +182,6 @@ function RecommendationPage() {
               <input type="number" name="ph" value={formData.ph} onChange={handleChange} placeholder="e.g., 6.5" />
             </div>
             
-            {/* Weather Data */}
             <div className="form-group">
               <label>Temperature (°C)</label>
               <input type="number" name="temperature" value={formData.temperature} onChange={handleChange} />
@@ -184,8 +196,26 @@ function RecommendationPage() {
             </div>
           </div>
           
-          <button type="button" className="submit-btn">{t.submit}</button>
+          {/* NEW: Prediction Button calls handlePredict */}
+          <button type="button" onClick={handlePredict} className="submit-btn">{t.submit}</button>
         </form>
+
+        {/* NEW: Display the Result */}
+        {prediction && (
+          <div style={{
+            marginTop: '2rem',
+            padding: '1.5rem',
+            backgroundColor: '#e8f5e9',
+            border: '2px solid #4CAF50',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{margin: 0, color: '#2E7D32'}}>Recommended Crop:</h3>
+            <div style={{fontSize: '2.5rem', fontWeight: 'bold', color: '#1B5E20', marginTop: '0.5rem', textTransform: 'capitalize'}}>
+              {prediction}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
