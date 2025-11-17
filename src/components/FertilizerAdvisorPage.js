@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../App';
 
+// IMPORTANT: Replace this with your new Render URL
+const API_URL = "https://cropclock-backend.onrender.com";
+
 function FertilizerAdvisorPage() {
-  const { language, sharedNPK, setSharedNPK } = useApp(); // Get global state
+  const { language, sharedNPK, setSharedNPK } = useApp();
   const t = translations[language];
 
-  // Local state for this form
   const [formData, setFormData] = useState({
     location: '',
     temperature: '',
     humidity: '',
-    moisture: '', // Soil Moisture
-    nitrogen: '', // Will be pre-filled
-    potassium: '', // Will be pre-filled
-    phosphorus: '', // Will be pre-filled
+    moisture: '',
+    nitrogen: sharedNPK.nitrogen || '',
+    potassium: sharedNPK.potassium || '',
+    phosphorus: sharedNPK.phosphorus || '',
     soil: '',
     crop: ''
   });
@@ -25,16 +27,16 @@ function FertilizerAdvisorPage() {
   const soilTypes = ['Clay', 'Sandy', 'Loamy', 'Black', 'Red'];
   const crops = ['Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane'];
 
-  // 1. Automatic GPS Location & NPK Sync
   useEffect(() => {
-    // Pre-fill NPK from global state
     setFormData(prev => ({
       ...prev,
       nitrogen: sharedNPK.nitrogen,
       potassium: sharedNPK.potassium,
       phosphorus: sharedNPK.phosphorus
     }));
+  }, [sharedNPK]);
 
+  useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -51,9 +53,8 @@ function FertilizerAdvisorPage() {
     } else {
       setIsLoading(false);
     }
-  }, [sharedNPK]); // Re-sync if sharedNPK changes
+  }, []);
 
-  // Helper: Fetch Weather
   const fetchWeatherByCoords = async (lat, long, locationName = null) => {
     try {
       let finalLocationName = locationName;
@@ -79,7 +80,6 @@ function FertilizerAdvisorPage() {
     }
   };
 
-  // 2. Manual "Get Weather"
   const handleManualWeatherFetch = async () => {
     if (!formData.location) return;
     setManualLoading(true);
@@ -100,13 +100,9 @@ function FertilizerAdvisorPage() {
     setManualLoading(false);
   };
 
-  // 3. Handle Form Changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Update local form
     setFormData({ ...formData, [name]: value });
-
-    // NEW: Sync NPK fields with global state
     if (name === 'nitrogen' || name === 'potassium' || name === 'phosphorus') {
       setSharedNPK(prev => ({
         ...prev,
@@ -115,7 +111,6 @@ function FertilizerAdvisorPage() {
     }
   };
 
-  // 4. Handle Fertilizer Prediction
   const handlePredict = async (e) => {
     e.preventDefault();
     if(!formData.soil || !formData.crop) {
@@ -123,7 +118,8 @@ function FertilizerAdvisorPage() {
       return;
     }
     try {
-      const response = await fetch('http://localhost:5000/predict_fertilizer', {
+      // --- UPDATED URL ---
+      const response = await fetch(`${API_URL}/predict_fertilizer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -140,7 +136,7 @@ function FertilizerAdvisorPage() {
       const result = await response.json();
       if (result.Recommended_Fertilizer) setPrediction(result.Recommended_Fertilizer);
       else alert("Error: " + result.error);
-    } catch (error) {
+    } catch (error) { 
       alert("Backend not connected");
     }
   };
@@ -204,7 +200,6 @@ function FertilizerAdvisorPage() {
               </select>
             </div>
 
-            {/* NPK Inputs read from local state (which is synced) */}
             <div className="form-group">
               <label>Nitrogen (N)</label>
               <input type="number" name="nitrogen" value={formData.nitrogen} onChange={handleChange} placeholder="Auto-filled" required />
@@ -249,10 +244,8 @@ function FertilizerAdvisorPage() {
     </div>
   );
 }
-
 const translations = {
   en: { title: 'Fertilizer Advisor', submit: 'Recommend Fertilizer' },
   ta: { title: 'உர ஆலோசகர்', submit: 'உரத்தை பரிந்துரைக்கவும்' },
 };
-
 export default FertilizerAdvisorPage;

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../App';
 
+// IMPORTANT: Replace this with your new Render URL
+const API_URL = "https://cropclock-backend.onrender.com";
+
 function RecommendationPage() {
-  const { language, setSharedNPK } = useApp(); // Get the global NPK setter
+  const { language, setSharedNPK } = useApp();
   const t = translations[language];
   
-  // Local form state
   const [formData, setFormData] = useState({
     location: '', 
     nitrogen: '',
@@ -31,7 +33,6 @@ function RecommendationPage() {
   const npkPrevCrops = ["Rice", "Wheat", "Maize", "Cotton", "Sugarcane", "Groundnut", "Soybean", "Pulses", "Millets", "Vegetables", "Sunflower", "Chillies"];
   const npkYields = ["High", "Medium", "Low"];
 
-  // 1. Automatic GPS Location on Load
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -51,7 +52,6 @@ function RecommendationPage() {
     }
   }, []);
 
-  // Helper: Fetch Weather
   const fetchWeatherByCoords = async (lat, long, locationName = null) => {
     try {
       let finalLocationName = locationName;
@@ -78,7 +78,6 @@ function RecommendationPage() {
     }
   };
 
-  // 2. Manual "Get Weather"
   const handleManualWeatherFetch = async () => {
     if (!formData.location) return;
     setManualLoading(true);
@@ -99,7 +98,6 @@ function RecommendationPage() {
     setManualLoading(false);
   };
 
-  // 3. Handle NPK Prediction
   const handlePredictNPK = async () => {
     if (formData.temperature === "" || formData.humidity === "" || formData.rainfall === "") {
       alert("Please get Weather data first (GPS or Manual)!");
@@ -111,7 +109,8 @@ function RecommendationPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/predict_npk', {
+      // --- UPDATED URL ---
+      const response = await fetch(`${API_URL}/predict_npk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,24 +122,21 @@ function RecommendationPage() {
           rainfall: formData.rainfall
         }),
       });
+
       const result = await response.json();
 
       if (result.N !== undefined) {
-        // 1. Update local form
         setFormData(prev => ({
           ...prev,
           nitrogen: result.N,
           phosphorus: result.P,
           potassium: result.K
         }));
-        
-        // 2. NEW: Update global state
         setSharedNPK({
           nitrogen: result.N,
           phosphorus: result.P,
           potassium: result.K
         });
-        
         alert("✅ NPK values predicted and auto-filled!");
       } else {
         alert("Error predicting NPK: " + result.error);
@@ -151,12 +147,16 @@ function RecommendationPage() {
     }
   };
 
-  // 4. Handle Final Crop Prediction
   const handlePredictCrop = async (e) => {
     e.preventDefault();
-    // ... (rest of the function is the same)
+    if (!formData.nitrogen || !formData.phosphorus || !formData.potassium) {
+      alert("Please fill in N, P, and K values (or use NPK Predictor).");
+      return;
+    }
+
     try {
-      const response = await fetch('http://localhost:5000/predict', {
+      // --- UPDATED URL ---
+      const response = await fetch(`${API_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,13 +177,9 @@ function RecommendationPage() {
     }
   };
 
-  // 5. Handle Manual Form Changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Update local form
     setFormData({ ...formData, [name]: value });
-
-    // NEW: Sync manual NPK changes to global state
     if (name === 'nitrogen' || name === 'phosphorus' || name === 'potassium') {
       setSharedNPK(prev => ({
         ...prev,
@@ -195,10 +191,8 @@ function RecommendationPage() {
   return (
     <div className="feature-page">
       <h2>{t.title}</h2>
-      
       <div className="form-container">
         
-        {/* --- SECTION 1: WEATHER --- */}
         <div className="form-section-title">1. Get Local Weather</div>
         <div className="form-group" style={{marginBottom: '1.5rem'}}>
           <label>Location (Village / City)</label>
@@ -221,7 +215,6 @@ function RecommendationPage() {
           </div>
         </div>
 
-        {/* --- SECTION 2: SMART NPK PREDICTOR --- */}
         <div className="form-section-title" style={{marginTop: '2rem', color: '#7c3aed', borderBottomColor: '#ddd6fe'}}>
           2. Smart NPK Predictor (Optional)
         </div>
@@ -262,11 +255,9 @@ function RecommendationPage() {
           </button>
         </div>
 
-        {/* --- SECTION 3: CROP RECOMMENDATION --- */}
         <div className="form-section-title">3. Crop Recommendation Inputs</div>
         <form onSubmit={handlePredictCrop}>
           <div className="form-grid">
-            {/* NPK Inputs read from LOCAL form state */}
             <div className="form-group">
               <label>Nitrogen (N)</label>
               <input type="number" name="nitrogen" value={formData.nitrogen} onChange={handleChange} placeholder="Auto-filled or Manual" required />
@@ -279,12 +270,10 @@ function RecommendationPage() {
               <label>Potassium (K)</label>
               <input type="number" name="potassium" value={formData.potassium} onChange={handleChange} placeholder="Auto-filled or Manual" required />
             </div>
-            
             <div className="form-group">
               <label>pH Level</label>
               <input type="number" name="ph" value={formData.ph} onChange={handleChange} placeholder="e.g., 6.5" required />
             </div>
-            
             <div className="form-group">
               <label>Temperature (°C)</label>
               <input type="number" name="temperature" value={formData.temperature} onChange={handleChange} placeholder="Auto-filled" required />
@@ -298,11 +287,9 @@ function RecommendationPage() {
               <input type="number" name="rainfall" value={formData.rainfall} onChange={handleChange} placeholder="Auto-filled" required />
             </div>
           </div>
-          
           <button type="submit" className="submit-btn">{t.submit}</button>
         </form>
 
-        {/* Result */}
         {prediction && (
           <div style={{
             marginTop: '2rem',
@@ -322,10 +309,8 @@ function RecommendationPage() {
     </div>
   );
 }
-
 const translations = {
   en: { title: 'AI Smart Farmer Assistant', submit: 'Predict Crop' },
   ta: { title: 'AI ஸ்மார்ட் விவசாயி உதவியாளர்', submit: 'பயிரை கணிக்கவும்' },
 };
-
 export default RecommendationPage;

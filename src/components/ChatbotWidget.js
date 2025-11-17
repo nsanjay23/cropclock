@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../App';
 
+// IMPORTANT: Replace this with your new Render URL
+const API_URL = "https://cropclock-backend.onrender.com";
+
 function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const { language } = useApp();
   const t = translations[language];
 
-  // New states for the chat
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
     { from: 'ai', text: t.welcome }
   ]);
   
-  // Ref to scroll to bottom
   const chatBodyRef = useRef(null);
 
   useEffect(() => {
-    // Auto-scroll to bottom when new messages appear
     if (chatBodyRef.current) {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
@@ -37,8 +37,8 @@ function ChatbotWidget() {
     setIsLoading(true);
 
     try {
-      // Send message to your new backend route
-      const response = await fetch('http://localhost:5000/chat', {
+      // --- UPDATED URL ---
+      const response = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input }),
