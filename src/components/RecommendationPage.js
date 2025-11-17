@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../App';
 
 function RecommendationPage() {
-  const { language } = useApp();
+  const { language, setSharedNPK } = useApp(); // Get the global NPK setter
+  const t = translations[language];
   
+  // Local form state
   const [formData, setFormData] = useState({
     location: '', 
     nitrogen: '',
@@ -15,13 +17,21 @@ function RecommendationPage() {
     rainfall: ''
   });
 
+  const [npkData, setNpkData] = useState({
+    soil_type: '',
+    prev_crop: '',
+    yield_level: ''
+  });
+
   const [isLoading, setIsLoading] = useState(true);
   const [manualLoading, setManualLoading] = useState(false);
-  
-  // NEW: State for the prediction result
   const [prediction, setPrediction] = useState(null);
 
-  // 1. Automatic GPS Location (Existing Code)
+  const npkSoilTypes = ["Loamy", "Sandy", "Clay", "Silty", "Red Soil", "Black Soil", "Alluvial", "Laterite"];
+  const npkPrevCrops = ["Rice", "Wheat", "Maize", "Cotton", "Sugarcane", "Groundnut", "Soybean", "Pulses", "Millets", "Vegetables", "Sunflower", "Chillies"];
+  const npkYields = ["High", "Medium", "Low"];
+
+  // 1. Automatic GPS Location on Load
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -41,7 +51,7 @@ function RecommendationPage() {
     }
   }, []);
 
-  // Helper: Fetch Weather (Existing Code)
+  // Helper: Fetch Weather
   const fetchWeatherByCoords = async (lat, long, locationName = null) => {
     try {
       let finalLocationName = locationName;
@@ -52,7 +62,7 @@ function RecommendationPage() {
         finalLocationName = address.village || address.town || address.city || address.county || "Unknown Location";
       }
 
-      const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${long}&current=temperature_2m,relative_humidity_2m,rain`);
+      const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${long}&current=temperature_2m,relative_humidity_2m,precipitation`);
       const weatherData = await weatherResponse.json();
       const current = weatherData.current;
 
@@ -61,21 +71,20 @@ function RecommendationPage() {
         location: finalLocationName,
         temperature: current.temperature_2m,
         humidity: current.relative_humidity_2m,
-        rainfall: current.rain,
+        rainfall: current.precipitation,
       }));
     } catch (error) {
       console.error("Error fetching weather:", error);
     }
   };
 
-  // Manual "Get Weather" (Existing Code)
+  // 2. Manual "Get Weather"
   const handleManualWeatherFetch = async () => {
     if (!formData.location) return;
     setManualLoading(true);
     try {
       const searchResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${formData.location}`);
       const searchData = await searchResponse.json();
-
       if (searchData && searchData.length > 0) {
         const lat = searchData[0].lat;
         const lon = searchData[0].lon;
@@ -85,122 +94,215 @@ function RecommendationPage() {
         alert("Location not found.");
       }
     } catch (error) {
-      alert("Error fetching weather data.");
+      alert("Error fetching data.");
     }
     setManualLoading(false);
   };
 
-  // NEW: Handle Prediction (Connect to Backend)
-  const handlePredict = async () => {
-    // Basic validation
-    if (!formData.nitrogen || !formData.phosphorus || !formData.potassium) {
-      alert("Please fill in N, P, and K values.");
+  // 3. Handle NPK Prediction
+  const handlePredictNPK = async () => {
+    if (formData.temperature === "" || formData.humidity === "" || formData.rainfall === "") {
+      alert("Please get Weather data first (GPS or Manual)!");
+      return;
+    }
+    if (!npkData.soil_type || !npkData.prev_crop || !npkData.yield_level) {
+      alert("Please select Soil Type, Previous Crop, and Yield Level.");
       return;
     }
 
     try {
-      const response = await fetch('http://localhost:5000/predict', {
+      const response = await fetch('http://localhost:5000/predict_npk', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          soil_type: npkData.soil_type,
+          prev_crop: npkData.prev_crop,
+          yield_level: npkData.yield_level,
+          tempC: formData.temperature,
+          humidity: formData.humidity,
+          rainfall: formData.rainfall
+        }),
       });
-
       const result = await response.json();
-      
-      if (result.prediction) {
-        setPrediction(result.prediction);
+
+      if (result.N !== undefined) {
+        // 1. Update local form
+        setFormData(prev => ({
+          ...prev,
+          nitrogen: result.N,
+          phosphorus: result.P,
+          potassium: result.K
+        }));
+        
+        // 2. NEW: Update global state
+        setSharedNPK({
+          nitrogen: result.N,
+          phosphorus: result.P,
+          potassium: result.K
+        });
+        
+        alert("✅ NPK values predicted and auto-filled!");
       } else {
-        alert("Error predicting: " + result.error);
+        alert("Error predicting NPK: " + result.error);
       }
     } catch (error) {
-      console.error("Error connecting to backend:", error);
-      alert("Could not connect to the prediction server.");
+      console.error(error);
+      alert("Could not connect to NPK predictor.");
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // 4. Handle Final Crop Prediction
+  const handlePredictCrop = async (e) => {
+    e.preventDefault();
+    // ... (rest of the function is the same)
+    try {
+      const response = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          N: formData.nitrogen,
+          P: formData.phosphorus,
+          K: formData.potassium,
+          temperature: formData.temperature,
+          humidity: formData.humidity,
+          ph: formData.ph,
+          rainfall: formData.rainfall
+        }),
+      });
+      const result = await response.json();
+      if (result.crop) setPrediction(result.crop);
+      else alert("Error: " + result.error);
+    } catch (error) {
+      alert("Backend not connected");
+    }
   };
 
-  const t = translations[language];
+  // 5. Handle Manual Form Changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Update local form
+    setFormData({ ...formData, [name]: value });
+
+    // NEW: Sync manual NPK changes to global state
+    if (name === 'nitrogen' || name === 'phosphorus' || name === 'potassium') {
+      setSharedNPK(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
 
   return (
     <div className="feature-page">
       <h2>{t.title}</h2>
       
       <div className="form-container">
-        <form>
-          <div className="form-grid">
-            
-            {/* Location Input + Button */}
-            <div className="form-group" style={{gridColumn: '1 / -1'}}>
-              <label>Location (Village / City)</label>
-              <div style={{display: 'flex', gap: '10px'}}>
-                <input 
-                  type="text" 
-                  name="location" 
-                  value={formData.location} 
-                  onChange={handleChange} 
-                  placeholder={isLoading ? "Detecting location..." : "Enter city name"} 
-                  style={{flexGrow: 1}}
-                />
-                <button 
-                  type="button" 
-                  onClick={handleManualWeatherFetch}
-                  style={{
-                    backgroundColor: '#388E3C',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0 20px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {manualLoading ? "Loading..." : "Get Weather"}
-                </button>
-              </div>
-            </div>
+        
+        {/* --- SECTION 1: WEATHER --- */}
+        <div className="form-section-title">1. Get Local Weather</div>
+        <div className="form-group" style={{marginBottom: '1.5rem'}}>
+          <label>Location (Village / City)</label>
+          <div style={{display: 'flex', gap: '10px'}}>
+            <input 
+              type="text" 
+              name="location" 
+              value={formData.location} 
+              onChange={handleChange} 
+              placeholder={isLoading ? "Detecting GPS..." : "Enter city name"} 
+              style={{flexGrow: 1}}
+            />
+            <button 
+              type="button" 
+              onClick={handleManualWeatherFetch}
+              style={{backgroundColor: '#0ea5e9', color: 'white', border: 'none', borderRadius: '8px', padding: '0 20px', cursor: 'pointer', fontWeight: 'bold'}}
+            >
+              {manualLoading ? "..." : "Get Weather"}
+            </button>
+          </div>
+        </div>
 
+        {/* --- SECTION 2: SMART NPK PREDICTOR --- */}
+        <div className="form-section-title" style={{marginTop: '2rem', color: '#7c3aed', borderBottomColor: '#ddd6fe'}}>
+          2. Smart NPK Predictor (Optional)
+        </div>
+        <div style={{backgroundColor: '#f5f3ff', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem'}}>
+          <p style={{fontSize: '0.9rem', color: '#666', marginTop: 0}}>
+            Don't know your soil's N-P-K values? We can estimate them.
+          </p>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Soil Type</label>
+              <select value={npkData.soil_type} onChange={(e) => setNpkData({...npkData, soil_type: e.target.value})}>
+                <option value="">Select Soil Type</option>
+                {npkSoilTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Previous Crop</label>
+              <select value={npkData.prev_crop} onChange={(e) => setNpkData({...npkData, prev_crop: e.target.value})}>
+                <option value="">Select Previous Crop</option>
+                {npkPrevCrops.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Yield Level</label>
+              <select value={npkData.yield_level} onChange={(e) => setNpkData({...npkData, yield_level: e.target.value})}>
+                <option value="">Select Yield</option>
+                {npkYields.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={handlePredictNPK} 
+            className="submit-btn"
+            style={{backgroundColor: '#7c3aed', marginTop: '10px'}}
+          >
+            🔍 Predict & Auto-Fill NPK
+          </button>
+        </div>
+
+        {/* --- SECTION 3: CROP RECOMMENDATION --- */}
+        <div className="form-section-title">3. Crop Recommendation Inputs</div>
+        <form onSubmit={handlePredictCrop}>
+          <div className="form-grid">
+            {/* NPK Inputs read from LOCAL form state */}
             <div className="form-group">
               <label>Nitrogen (N)</label>
-              <input type="number" name="nitrogen" value={formData.nitrogen} onChange={handleChange} placeholder="e.g., 90" />
+              <input type="number" name="nitrogen" value={formData.nitrogen} onChange={handleChange} placeholder="Auto-filled or Manual" required />
             </div>
             <div className="form-group">
               <label>Phosphorus (P)</label>
-              <input type="number" name="phosphorus" value={formData.phosphorus} onChange={handleChange} placeholder="e.g., 42" />
+              <input type="number" name="phosphorus" value={formData.phosphorus} onChange={handleChange} placeholder="Auto-filled or Manual" required />
             </div>
             <div className="form-group">
               <label>Potassium (K)</label>
-              <input type="number" name="potassium" value={formData.potassium} onChange={handleChange} placeholder="e.g., 43" />
+              <input type="number" name="potassium" value={formData.potassium} onChange={handleChange} placeholder="Auto-filled or Manual" required />
             </div>
+            
             <div className="form-group">
               <label>pH Level</label>
-              <input type="number" name="ph" value={formData.ph} onChange={handleChange} placeholder="e.g., 6.5" />
+              <input type="number" name="ph" value={formData.ph} onChange={handleChange} placeholder="e.g., 6.5" required />
             </div>
             
             <div className="form-group">
               <label>Temperature (°C)</label>
-              <input type="number" name="temperature" value={formData.temperature} onChange={handleChange} />
+              <input type="number" name="temperature" value={formData.temperature} onChange={handleChange} placeholder="Auto-filled" required />
             </div>
             <div className="form-group">
               <label>Humidity (%)</label>
-              <input type="number" name="humidity" value={formData.humidity} onChange={handleChange} />
+              <input type="number" name="humidity" value={formData.humidity} onChange={handleChange} placeholder="Auto-filled" required />
             </div>
             <div className="form-group">
               <label>Rainfall (mm)</label>
-              <input type="number" name="rainfall" value={formData.rainfall} onChange={handleChange} />
+              <input type="number" name="rainfall" value={formData.rainfall} onChange={handleChange} placeholder="Auto-filled" required />
             </div>
           </div>
           
-          {/* NEW: Prediction Button calls handlePredict */}
-          <button type="button" onClick={handlePredict} className="submit-btn">{t.submit}</button>
+          <button type="submit" className="submit-btn">{t.submit}</button>
         </form>
 
-        {/* NEW: Display the Result */}
+        {/* Result */}
         {prediction && (
           <div style={{
             marginTop: '2rem',
@@ -222,14 +324,8 @@ function RecommendationPage() {
 }
 
 const translations = {
-  en: {
-    title: 'AI Smart Farmer Assistant',
-    submit: 'Predict Crop',
-  },
-  ta: {
-    title: 'AI ஸ்மார்ட் விவசாயி உதவியாளர்',
-    submit: 'பயிரை கணிக்கவும்',
-  },
+  en: { title: 'AI Smart Farmer Assistant', submit: 'Predict Crop' },
+  ta: { title: 'AI ஸ்மார்ட் விவசாயி உதவியாளர்', submit: 'பயிரை கணிக்கவும்' },
 };
 
 export default RecommendationPage;

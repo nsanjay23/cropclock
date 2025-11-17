@@ -1,6 +1,5 @@
 import React, { useState, createContext, useContext } from 'react';
-// Import Link here
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'; 
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 
 import LandingPage from './components/LandingPage';
@@ -14,21 +13,31 @@ export const useApp = () => useContext(AppContext);
 
 function App() {
   const [language, setLanguage] = useState('en');
-  const [location, setLocation] = useState('');
+
+  // NEW: Add a shared state for NPK values
+  const [sharedNPK, setSharedNPK] = useState({
+    nitrogen: '',
+    phosphorus: '',
+    potassium: ''
+  });
 
   const handleLanguageChange = (e) => {
     setLanguage(e.target.value);
   };
 
+  // Pass down the new NPK state and its setter function
+  const contextValue = {
+    language,
+    sharedNPK,
+    setSharedNPK
+  };
+
   return (
-    <AppContext.Provider value={{ language, setLanguage, location, setLocation }}>
+    <AppContext.Provider value={contextValue}>
       <BrowserRouter>
         <div className="App">
           <nav className="navbar">
-            
-            {/* Wrap the text in a Link component */}
             <Link to="/" className="navbar-brand">CropClock</Link>
-            
             <div className="navbar-language-selector">
               <label htmlFor="language-select">Language:</label>
               <select
